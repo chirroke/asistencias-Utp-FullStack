@@ -1,0 +1,9 @@
+# Dependencias
+node_modules/
+
+# Archivos de entorno (Credenciales y contraseñas)
+.env
+.env.local
+
+# Logs
+npm-debug.log*

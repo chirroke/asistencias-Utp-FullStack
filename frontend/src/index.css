@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    background-color: #071118;
+  }
+
+body {
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Keep the student portal light and make its mobile tab bar horizontal. */
+.alumno-app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #f8fafc;
+}
+
+.alumno-bottom-nav {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  max-width: 28rem;
+  margin-inline: auto;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+  padding: 8px 8px max(env(safe-area-inset-bottom), 8px);
+  box-shadow: 0 -4px 14px rgb(15 23 42 / 6%);
+}
+
+/* Scrollbar oscuro y elegante para la lista de asistencia */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(200, 16, 46, 0.4);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(200, 16, 46, 0.8);
+}
+
+/* Admin analytics: use the available content width, independent of Tailwind's
+   configured breakpoints (which can shift with browser zoom and the sidebar). */
+.admin-kpi-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-analytics-panels {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-shortcuts-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-distribution-layout {
+  display: grid;
+  grid-template-columns: 112px minmax(0, max-content);
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  width: max-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+.admin-donut {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.admin-donut-center {
+  position: absolute;
+  inset: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fff;
+}
+
+@media (min-width: 900px) {
+  .admin-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .admin-analytics-panels {
+    grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  }
+
+  .admin-shortcuts-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
