@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: asistencia-qr-avance2
+    runtime: docker
+    plan: free
+    region: virginia
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: asistencia-qr-demo-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: asistencia-qr-demo-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: asistencia-qr-demo-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: asistencia-qr-demo-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: asistencia-qr-demo-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PASSWORD_RESET_SECRET
+        generateValue: true
+      - key: FRONTEND_ORIGINS
+        value: https://asistencia-qr-avance2.onrender.com
+
+databases:
+  - name: asistencia-qr-demo-db
+    databaseName: asistencia_demo
+    user: asistencia_demo
+    postgresMajorVersion: "18"
+    plan: free
+    region: virginia

@@ -20,10 +20,12 @@ import { AdminAlumnosPage } from './pages/admin/AdminAlumnosPage';
 import { AdminCursosPage } from './pages/admin/AdminCursosPage';
 import { AlumnoDashboard } from './pages/alumno/AlumnoDashboard';
 import { DocenteJustificaciones } from './pages/docente/DocenteJustificaciones';
+import { DocenteReprogramarPage } from './pages/docente/DocenteReprogramarPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { abrirSesion } from './services/api';
 
 const AlumnoEscaneo = lazy(() => import('./pages/alumno/AlumnoEscaneo'));
+const AlumnoRegistrarRostro = lazy(() => import('./pages/alumno/AlumnoRegistrarRostro'));
 
 // El cursoId vive en la URL (/docente/proyeccion/:cursoId), no en el
 // "state" de React Router: ese state se pierde con cualquier refresh
@@ -139,6 +141,7 @@ export default function App() {
             }
           />
           <Route path="/docente/justificaciones" element={<ProtectedRoute allowedRoles={['docente']}><DocenteJustificaciones /></ProtectedRoute>} />
+          <Route path="/docente/cursos/:cursoId/reprogramar" element={<ProtectedRoute allowedRoles={['docente']}><DocenteReprogramarPage /></ProtectedRoute>} />
 
           {/* Admin */}
           <Route
@@ -172,6 +175,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/alumno/rostro" element={<ProtectedRoute allowedRoles={['alumno']}><Suspense fallback={<div className="min-h-screen bg-slate-50 p-8 text-center text-sm text-slate-500">Abriendo registro facial…</div>}><AlumnoRegistrarRostro /></Suspense></ProtectedRoute>} />
 
           <Route path="/" element={<RootRedirect />} />
           <Route path="*" element={<Navigate to="/" replace />} />

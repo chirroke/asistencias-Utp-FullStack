@@ -1,6 +1,6 @@
 // frontend/src/services/api.ts
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Todas las rutas protegidas necesitan el token que guarda AuthContext al hacer login.
 const authHeaders = (): HeadersInit => {
@@ -179,10 +179,22 @@ export const obtenerResumenAlumno = async () => {
   return manejarRespuesta(response);
 };
 
-export const escanearQrAlumno = async (qr: string) => {
+export const escanearQrAlumno = async (qr: string, selfie: Blob, embedding: number[]) => {
+  const form = new FormData();
+  form.append('qr', qr);
+  form.append('selfie', selfie, 'selfie.jpg');
+  form.append('embedding', JSON.stringify(embedding));
   const response = await fetch(`${API_URL}/alumno/asistencia/escanear`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ qr }),
+    method: 'POST', headers: authHeaders(), body: form,
   });
+  return manejarRespuesta(response);
+};
+
+export const registrarRostroAlumno = async (selfie: Blob, embedding: number[]) => {
+  const form = new FormData();
+  form.append('selfie', selfie, 'foto-referencia.jpg');
+  form.append('embedding', JSON.stringify(embedding));
+  const response = await fetch(`${API_URL}/alumno/perfil/rostro`, { method: 'POST', headers: authHeaders(), body: form });
   return manejarRespuesta(response);
 };
 
@@ -250,6 +262,14 @@ export const obtenerDirectorioDocentes = async () => {
   return manejarRespuesta(response);
 };
 
+export const actualizarEstadoDocenteAdmin = async (docenteId: string, activo: boolean) => {
+  const response = await fetch(`${API_URL}/admin/docentes/${docenteId}/estado`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ activo }),
+  });
+  return manejarRespuesta(response);
+};
+
 export const obtenerAlumnosAdmin = async () => {
   const response = await fetch(`${API_URL}/admin/alumnos`, { headers: authHeaders() });
   return manejarRespuesta(response);
@@ -268,6 +288,13 @@ export const registrarAlumnoAdmin = async (alumno: { nombres: string; apellidos:
   return manejarRespuesta(response);
 };
 
+export const retirarAlumnoCursoAdmin = async (alumnoId: string, cursoId: string) => {
+  const response = await fetch(`${API_URL}/admin/alumnos/${alumnoId}/cursos/${cursoId}/retirar`, {
+    method: 'POST', headers: authHeaders(),
+  });
+  return manejarRespuesta(response);
+};
+
 export const listarIncidenciasDocente = async () => {
   const response = await fetch(`${API_URL}/admin/incidencias-docentes`, { headers: authHeaders() });
   return manejarRespuesta(response);
@@ -282,3 +309,23 @@ export const resolverIncidenciaDocente = async (id: string, decision: 'aprobada'
 };
 
 export const obtenerEvidenciaIncidencia = (id: string) => obtenerArchivo(`/admin/incidencias-docentes/${id}/evidencia`);
+
+export const obtenerHistorialReprogramaciones = async () => {
+  const response = await fetch(`${API_URL}/docente/reprogramaciones`, { headers: authHeaders() });
+  return manejarRespuesta(response) as Promise<Array<{ id: string; codigo: string; nombre: string; seccionOrigen: string; seccionDestino: string; fecha: string; horaInicio: string; horaFin: string; motivo: string; solicitadaEn: string }>>;
+};
+
+export const reprogramarClase = async (
+  cursoId: string,
+  solicitud: { cursoDestinoId: string; fecha: string; horaInicio: string; horaFin: string; motivo: string },
+) => {
+  const response = await fetch(`${API_URL}/docente/cursos/${cursoId}/reprogramar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(solicitud),
+  });
+  return manejarRespuesta(response) as Promise<{ mensaje: string }>;
+};
+
+
+export const obtenerEvidenciaJustificacionDocente = (id: string) => obtenerArchivo(`/docente/justificaciones/${id}/evidencia`);

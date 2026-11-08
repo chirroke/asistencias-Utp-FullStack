@@ -6,3 +6,16 @@ build/
 .env.*
 !.env.example
 *.log
+*.backup
+*.dump
+target/
+.runtime/
+
+# Keep credential-bearing local docs and legacy seed data off the deployment repo.
+backend-spring/README.md
+backend-spring/legacy-demo/
+backend-spring/RESULTADO_PRUEBAS.txt
+backend-spring/RUTAS_MIGRADAS.md
+backend-spring/VALIDACION.md
+README_AVANCE2.md
+INICIAR_DEMO.cmd

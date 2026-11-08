@@ -1,0 +1,15 @@
+.git
+**/.git
+**/node_modules
+**/target
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+**/.env.local
+*.backup
+*.dump
+*.log
+backend-spring/legacy-demo
+backend-spring/README.md
+.runtime

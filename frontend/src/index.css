@@ -79,33 +79,98 @@ body {
 }
 
 .admin-distribution-layout {
-  display: grid;
-  grid-template-columns: 112px minmax(0, max-content);
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 20px;
-  width: max-content;
+  gap: 24px;
+  width: 100%;
   max-width: 100%;
   margin-inline: auto;
 }
 
-.admin-donut {
+.admin-donut-wrap {
   position: relative;
-  width: 112px;
-  height: 112px;
-  flex: none;
-  border-radius: 50%;
+  width: clamp(104px, 35%, 144px);
+  aspect-ratio: 1;
+  flex: 0 1 144px;
+}
+
+.admin-donut-chart {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.admin-donut-track,
+.admin-donut-segment {
+  fill: none;
+  stroke-width: 12;
+}
+
+.admin-donut-track {
+  stroke: #f1f5f9;
+}
+
+.admin-donut-segment {
+  stroke-linecap: butt;
+}
+
+.admin-donut-presente {
+  stroke: #10b981;
+}
+
+.admin-donut-falta {
+  stroke: #ef4444;
+}
+
+.admin-donut-justificada {
+  stroke: #2563eb;
+}
+
+.admin-donut-tardanza {
+  stroke: #f59e0b;
 }
 
 .admin-donut-center {
   position: absolute;
-  inset: 14px;
+  inset: 18%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   background: #fff;
+}
+
+.admin-donut-empty {
+  display: flex;
+  width: clamp(104px, 35%, 144px);
+  aspect-ratio: 1;
+  flex: 0 1 144px;
+  align-items: center;
+  justify-content: center;
+  border: 12px solid #f1f5f9;
+  border-radius: 50%;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.admin-distribution-legend {
+  display: grid;
+  gap: 8px;
+  font-size: 10px;
+}
+
+@media (max-width: 380px) {
+  .admin-distribution-layout {
+    gap: 12px;
+  }
+
+  .admin-distribution-legend {
+    gap: 6px;
+    font-size: 9px;
+  }
 }
 
 @media (min-width: 900px) {

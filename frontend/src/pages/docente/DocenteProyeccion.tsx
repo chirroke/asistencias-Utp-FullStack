@@ -19,6 +19,7 @@ type AlumnoEnVivo = {
   estado: 'presente' | 'falta' | 'justificada' | 'pendiente';
   hora?: string;
   similitud?: string;
+  foto?: string;
 };
 
 interface Props {
@@ -27,7 +28,7 @@ interface Props {
   cursoSeccion: string;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export function DocenteProyeccion({ sesionId, cursoNombre, cursoSeccion }: Props) {
   const [qrPayload, setQrPayload] = useState('');
@@ -36,6 +37,8 @@ export function DocenteProyeccion({ sesionId, cursoNombre, cursoSeccion }: Props
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [conectado, setConectado] = useState(false);
+  const [qrDisponible, setQrDisponible] = useState(true);
+  const [errorQR, setErrorQR] = useState('');
   const [checkedIn, setCheckedIn] = useState(false);
   const [modalManual, setModalManual] = useState(false);
   const [alumnoId, setAlumnoId] = useState('');
@@ -58,12 +61,31 @@ export function DocenteProyeccion({ sesionId, cursoNombre, cursoSeccion }: Props
   }, [sesionId]);
 
   const renovarQR = useCallback(async () => {
+    if (!navigator.onLine) {
+      setQrDisponible(false);
+      setQrPayload('');
+      setQrSeconds(0);
+      setErrorQR('Sin conexión. La proyección del QR está detenida hasta recuperar internet.');
+      return;
+    }
     try {
       const data = await generarQR(sesionId, 20);
+      if (!navigator.onLine) {
+        setQrDisponible(false);
+        setQrPayload('');
+        setQrSeconds(0);
+        setErrorQR('Sin conexión. La proyección del QR está detenida hasta recuperar internet.');
+        return;
+      }
       setQrPayload(data.qr_code);
       setQrSeconds(20);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo generar el QR');
+      setQrDisponible(true);
+      setErrorQR('');
+    } catch {
+      setQrPayload('');
+      setQrSeconds(0);
+      setQrDisponible(false);
+      setErrorQR('No se pudo renovar el QR. Verifica la conexión y que la sesión siga activa; se volverá a intentar.');
     }
   }, [sesionId]);
 
@@ -71,18 +93,33 @@ export function DocenteProyeccion({ sesionId, cursoNombre, cursoSeccion }: Props
     void Promise.resolve().then(cargarAsistencia);
     void Promise.resolve().then(renovarQR);
     void Promise.resolve().then(() => obtenerCheckinDocente(sesionId)).then((status) => setCheckedIn(status.registrado)).catch(() => undefined);
-    const qrTimer = window.setInterval(() => void renovarQR(), 20_000);
+    const qrTimer = window.setInterval(() => { if (navigator.onLine) void renovarQR(); }, 20_000);
     const rosterTimer = window.setInterval(() => void cargarAsistencia(), 15_000);
     const countdown = window.setInterval(() => setQrSeconds((s) => Math.max(0, s - 1)), 1_000);
     let retryTimer = 0;
     let socket: WebSocket | undefined;
     let cancelled = false;
 
+    const alPerderConexion = () => {
+      setQrDisponible(false);
+      setQrPayload('');
+      setQrSeconds(0);
+      setErrorQR('Sin conexión. La proyección del QR está detenida hasta recuperar internet.');
+    };
+    const alRecuperarConexion = () => {
+      setQrDisponible(false);
+      setErrorQR('Conexión recuperada. Solicitando un QR vigente…');
+      void renovarQR();
+    };
+    window.addEventListener('offline', alPerderConexion);
+    window.addEventListener('online', alRecuperarConexion);
+    if (!navigator.onLine) alPerderConexion();
+
     const connect = async () => {
       try {
         const { ticket } = await obtenerTicketAsistencia(sesionId);
         if (cancelled) return;
-        const endpoint = new URL(API_URL);
+        const endpoint = new URL(API_URL, window.location.origin);
         endpoint.protocol = endpoint.protocol === 'https:' ? 'wss:' : 'ws:';
         endpoint.pathname = '/ws/asistencia';
         endpoint.search = new URLSearchParams({ ticket }).toString();
@@ -109,6 +146,8 @@ export function DocenteProyeccion({ sesionId, cursoNombre, cursoSeccion }: Props
       window.clearInterval(rosterTimer);
       window.clearInterval(countdown);
       window.clearTimeout(retryTimer);
+      window.removeEventListener('offline', alPerderConexion);
+      window.removeEventListener('online', alRecuperarConexion);
       socket?.close();
     };
   }, [cargarAsistencia, renovarQR, sesionId]);
@@ -164,9 +203,9 @@ export function DocenteProyeccion({ sesionId, cursoNombre, cursoSeccion }: Props
       <main className="flex flex-1 flex-col gap-4 p-3 sm:gap-6 sm:p-4 lg:min-h-0 lg:flex-row lg:overflow-hidden lg:p-5">
         <section className="flex min-h-[55vh] flex-1 flex-col items-center justify-center lg:min-h-0 lg:overflow-y-auto">
           <div className="relative flex shrink-0 flex-col items-center rounded-3xl bg-white p-5 text-slate-900 shadow-2xl sm:p-8">
-            {qrPayload ? <QRCodeSVG value={qrPayload} size={320} level="M" fgColor="#002B49" className="h-auto w-[min(320px,65vw)]" /> : <div className="flex h-64 w-64 max-w-full items-center justify-center text-sm text-slate-500 sm:h-80 sm:w-80">Generando QR...</div>}
+            {qrPayload && qrDisponible ? <QRCodeSVG value={qrPayload} size={320} level="M" fgColor="#002B49" className="h-auto w-[min(320px,65vw)]" /> : <div role="status" aria-live="polite" className="flex h-64 w-64 max-w-full items-center justify-center px-6 text-center text-sm text-slate-600 sm:h-80 sm:w-80">{errorQR || 'Generando QR vigente…'}</div>}
             <div className="mt-5 flex flex-col items-center sm:mt-8">
-              <div className="flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700"><RefreshCw size={16} className={qrSeconds < 5 ? 'animate-spin' : ''}/> Nuevo QR en {qrSeconds}s</div>
+              <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold ${qrDisponible ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}><RefreshCw size={16} className={qrDisponible && qrSeconds < 5 ? 'animate-spin' : ''}/>{qrDisponible ? `Nuevo QR en ${qrSeconds}s` : 'QR pausado · reintentando'}</div>
               <p className="mt-3 text-xs text-slate-500">Token dinámico · se renueva automáticamente cada 20 segundos</p>
             </div>
           </div>
@@ -189,7 +228,7 @@ export function DocenteProyeccion({ sesionId, cursoNombre, cursoSeccion }: Props
             {cargando && <p className="py-8 text-center text-xs text-white/50">Cargando alumnos...</p>}
             {!cargando && alumnos.length === 0 && <p className="py-8 text-center text-xs text-white/50">No hay alumnos matriculados en este curso.</p>}
             {alumnos.map((alumno) => <div key={alumno.id} className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/5 p-3">
-              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${alumno.estado === 'presente' ? 'bg-emerald-600' : 'bg-slate-700'}`}>{alumno.nombre.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()}</div>
+              {alumno.foto ? <img src={alumno.foto} alt={`Selfie de ${alumno.nombre}`} className="h-11 w-11 shrink-0 rounded-full border-2 border-emerald-500 object-cover"/> : <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-bold ${alumno.estado === 'presente' ? 'bg-emerald-600' : 'bg-slate-700'}`}>{alumno.nombre.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase()}</div>}
               <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{alumno.nombre}</p><p className="text-[10px] text-white/40">{alumno.codigo}{alumno.hora ? ` · ${alumno.hora}` : ''}</p></div>
               <span className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase ${alumno.estado === 'presente' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-500/20 text-slate-300'}`}>{alumno.estado}</span>
             </div>)}

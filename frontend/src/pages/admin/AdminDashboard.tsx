@@ -17,8 +17,9 @@ type ResumenAdmin = {
   justificaciones_procesadas: number;
   incidencias_pendientes: number;
   porcentaje_global: number;
+  periodo_codigo: string | null;
   asistencia_por_curso: { id: string; nombre: string; seccion: string; porcentaje: number; registros: number }[];
-  distribucion_estados: { estado: 'presente' | 'falta' | 'justificada'; cantidad: number }[];
+  distribucion_estados: { estado: 'presente' | 'falta' | 'justificada' | 'tardanza'; cantidad: number }[];
   alumnos_en_riesgo: { id: string; nombres: string; apellidos: string; codigo_alumno: string; clases: number; faltas: number; porcentaje: number }[];
 };
 
@@ -35,19 +36,19 @@ export const AdminDashboard = () => {
   }, []);
 
   const distribucion = useMemo(() => {
-    const cantidad = { presente: 0, falta: 0, justificada: 0 };
+    const cantidad = { presente: 0, tardanza: 0, falta: 0, justificada: 0 };
     for (const estado of resumen?.distribucion_estados || []) cantidad[estado.estado] = estado.cantidad;
-    const total = cantidad.presente + cantidad.falta + cantidad.justificada;
-    let inicio = 0;
-    const partes = (['presente', 'falta', 'justificada'] as const).flatMap((estado) => {
-      if (!total || cantidad[estado] === 0) return [];
-      const fin = inicio + cantidad[estado] / total * 100;
-      const parte = `${estado === 'presente' ? '#10b981' : estado === 'falta' ? '#ef4444' : '#2563eb'} ${inicio}% ${fin}%`;
-      inicio = fin;
-      return [parte];
-    });
-    return { cantidad, total, fondo: `conic-gradient(${partes.join(', ')})` };
+    const total = cantidad.presente + cantidad.tardanza + cantidad.falta + cantidad.justificada;
+    return { cantidad, total };
   }, [resumen]);
+  const segmentosDistribucion = (['presente', 'tardanza', 'falta', 'justificada'] as const).map((estado) => ({
+    estado,
+    cantidad: distribucion.cantidad[estado],
+    porcentaje: distribucion.total ? distribucion.cantidad[estado] * 100 / distribucion.total : 0,
+  }));
+  const porcentajePresentes = distribucion.total
+    ? Math.round((distribucion.cantidad.presente + distribucion.cantidad.tardanza) * 100 / distribucion.total)
+    : 0;
   const cursosConAsistencia = resumen?.asistencia_por_curso || [];
   const alumnosEnRiesgo = resumen?.alumnos_en_riesgo || [];
   const analyticsReady = Array.isArray(resumen?.asistencia_por_curso) && Array.isArray(resumen?.distribucion_estados) && Array.isArray(resumen?.alumnos_en_riesgo);
@@ -61,7 +62,7 @@ export const AdminDashboard = () => {
 
   return <AdminLayout>
     <main className="min-w-0 flex-1 space-y-4 p-4 md:p-5 lg:p-6">
-      <header className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-lg font-extrabold text-[#002b49]">Dashboard Analítico</h1><p className="mt-0.5 text-[11px] text-slate-500">Ciclo 2026-I · Indicadores agregados de la base de datos</p></div><button onClick={() => navigate('/cuenta/cambiar-contrasena')} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold">Cambiar contraseña</button></header>
+      <header className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-lg font-extrabold text-[#002b49]">Dashboard Analítico</h1><p className="mt-0.5 text-[11px] text-slate-500">Ciclo {resumen?.periodo_codigo || 'sin ciclo activo'} · Asistencia y cursos del periodo activo</p></div><button onClick={() => navigate('/cuenta/cambiar-contrasena')} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold">Cambiar contraseña</button></header>
       {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</p>}
       {resumen && !analyticsReady && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">El backend está respondiendo con la versión anterior. Reinícialo para cargar las nuevas métricas analíticas.</p>}
 
@@ -74,7 +75,7 @@ export const AdminDashboard = () => {
 
       <section className="admin-analytics-panels grid gap-3">
         <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><h2 className="text-xs font-extrabold text-[#002b49]">% Asistencia por curso</h2>{cursosConAsistencia.length ? <div className="mt-4 space-y-3">{cursosConAsistencia.map((curso) => <div key={curso.id} className="grid grid-cols-[minmax(84px,1fr)_3fr_36px] items-center gap-2 text-[10px]"><span className="truncate text-right text-slate-500">{curso.nombre}</span><div className="h-4 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${curso.porcentaje >= 85 ? 'bg-emerald-500' : curso.porcentaje >= 75 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${Math.min(100, curso.porcentaje)}%`}}/></div><b className="text-right text-slate-600">{Math.round(curso.porcentaje)}%</b></div>)}</div> : <p className="py-10 text-center text-xs text-slate-400">{analyticsReady ? 'Aún no hay asistencias registradas.' : 'Reinicia el backend para cargar estas métricas.'}</p>}</article>
-        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><h2 className="text-xs font-extrabold text-[#002b49]">Distribución de estados</h2><div className="admin-distribution-layout mt-4">{distribucion.total ? <div className="admin-donut" style={{ background: distribucion.fondo }}><div className="admin-donut-center"><b className="text-sm text-[#002b49]">{resumen?.porcentaje_global ?? 0}%</b><span className="text-[9px] text-slate-400">Presente</span></div></div> : <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full border-[14px] border-slate-100 text-[10px] text-slate-400">Sin datos</div>}<div className="space-y-2 text-[10px]">{([{ key: 'presente', label: 'Presente', color: 'bg-emerald-500' }, { key: 'falta', label: 'Falta', color: 'bg-red-500' }, { key: 'justificada', label: 'Justificada', color: 'bg-blue-600' }] as const).map(({ key, label, color }) => <p key={key} className="flex items-center gap-2"><i className={`h-2 w-2 shrink-0 rounded-full ${color}`}/><span className="text-slate-500">{label}</span><b>{distribucion.total ? Math.round(distribucion.cantidad[key] * 100 / distribucion.total) : 0}%</b></p>)}</div></div></article>
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><h2 className="text-xs font-extrabold text-[#002b49]">Distribución de estados</h2><div className="admin-distribution-layout mt-4">{distribucion.total ? <div className="admin-donut-wrap"><svg className="admin-donut-chart" viewBox="0 0 120 120" role="img" aria-label={`Distribución de asistencias: ${porcentajePresentes}% asistieron, incluyendo tardanzas`}><circle className="admin-donut-track" cx="60" cy="60" r="48"/><g transform="rotate(-90 60 60)">{segmentosDistribucion.map(({ estado, porcentaje }, index) => { const circunferencia = 2 * Math.PI * 48; const longitud = circunferencia * porcentaje / 100; const desplazamiento = segmentosDistribucion.slice(0, index).reduce((total, segmento) => total + circunferencia * segmento.porcentaje / 100, 0); return porcentaje > 0 ? <circle key={estado} className={`admin-donut-segment admin-donut-${estado}`} cx="60" cy="60" r="48" strokeDasharray={`${longitud} ${circunferencia - longitud}`} strokeDashoffset={-desplazamiento}/> : null; })}</g></svg><div className="admin-donut-center"><b className="text-sm text-[#002b49]">{porcentajePresentes}%</b><span className="text-[9px] text-slate-400">Asistió</span></div></div> : <div className="admin-donut-empty">Sin datos</div>}<div className="admin-distribution-legend">{([{ key: 'presente', label: 'Presente', color: 'bg-emerald-500' }, { key: 'tardanza', label: 'Tardanza', color: 'bg-amber-500' }, { key: 'falta', label: 'Falta', color: 'bg-red-500' }, { key: 'justificada', label: 'Justificada', color: 'bg-blue-600' }] as const).map(({ key, label, color }) => <p key={key} className="flex items-center gap-2"><i className={`h-2 w-2 shrink-0 rounded-full ${color}`}/><span className="text-slate-500">{label}</span><b>{Math.round(segmentosDistribucion.find((segmento) => segmento.estado === key)?.porcentaje ?? 0)}%</b></p>)}</div></div></article>
       </section>
 
       <section className="admin-shortcuts-grid grid gap-3">{[

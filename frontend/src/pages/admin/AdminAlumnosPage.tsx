@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search, UserPlus, Users } from 'lucide-react';
-import { obtenerAlumnosAdmin, obtenerCursosAdmin, registrarAlumnoAdmin } from '../../services/api';
+import { ArrowLeft, Search, UserPlus, Users, UserMinus } from 'lucide-react';
+import { obtenerAlumnosAdmin, obtenerCursosAdmin, registrarAlumnoAdmin, retirarAlumnoCursoAdmin } from '../../services/api';
 import { AdminLayout } from '../../components/AdminLayout';
 
-type Alumno = { id: string; nombres: string; apellidos: string; correo: string; activo: boolean; codigo_alumno: string; cursos_activos: number; cursos: string };
+type Alumno = { id: string; nombres: string; apellidos: string; correo: string; activo: boolean; codigo_alumno: string; cursos_activos: number; matriculas: Array<{ cursoId: string; codigo: string; nombre: string; seccion: string; estado: 'activa' | 'retirada'; retiradaEn: string | null }> };
 type Curso = { id: string; codigo: string; nombre: string; seccion: string; capacidad_alumnos: number; matriculados: number; docente: string };
 
 export function AdminAlumnosPage() {
@@ -15,6 +15,7 @@ export function AdminAlumnosPage() {
   const [error, setError] = useState('');
   const [mensaje, setMensaje] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [retirando, setRetirando] = useState('');
   const [form, setForm] = useState({ nombres: '', apellidos: '', correo: '', codigo_alumno: '', contrasena: '', curso_id: '' });
 
   const cargar = useCallback(async () => {
@@ -44,6 +45,18 @@ export function AdminAlumnosPage() {
     finally { setGuardando(false); }
   };
 
+  const retirar = async (alumno: Alumno, matricula: Alumno['matriculas'][number]) => {
+    if (!window.confirm(`¿Retirar a ${alumno.nombres} ${alumno.apellidos} del curso ${matricula.codigo}? El registro quedará en el historial.`)) return;
+    const key = `${alumno.id}:${matricula.cursoId}`;
+    setRetirando(key); setError(''); setMensaje('');
+    try {
+      await retirarAlumnoCursoAdmin(alumno.id, matricula.cursoId);
+      setMensaje(`${alumno.nombres} quedó retirado del curso ${matricula.codigo}.`);
+      await cargar();
+    } catch (err) { setError(err instanceof Error ? err.message : 'No se pudo retirar al alumno.'); }
+    finally { setRetirando(''); }
+  };
+
   return <AdminLayout><div className="min-h-screen bg-slate-50 text-slate-800">
     <header className="flex items-center gap-3 bg-[#002238] px-5 py-4 text-white"><button onClick={() => navigate('/admin/dashboard')} className="rounded-lg bg-white/10 p-2"><ArrowLeft size={17}/></button><div><h1 className="text-sm font-bold">Directorio de Alumnos</h1><p className="text-[10px] text-slate-300">Registro y matrícula · máximo 5 alumnos por curso</p></div></header>
     <main className="mx-auto max-w-6xl space-y-5 p-4 md:p-7">
@@ -62,7 +75,7 @@ export function AdminAlumnosPage() {
         <button disabled={guardando || !disponibles.length} className="rounded-xl bg-[#c8102e] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50 md:col-span-2 lg:col-span-3">{guardando ? 'Registrando…' : disponibles.length ? 'Registrar alumno' : 'No hay cursos con cupo'}</button>
       </form>
       <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 md:w-96"><Search size={15} className="text-slate-400"/><input value={buscar} onChange={(e) => setBuscar(e.target.value)} className="w-full text-xs outline-none" placeholder="Buscar por nombre, código o correo"/></label>
-      <section className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">{visibles.length === 0 ? <div className="p-12 text-center"><Users size={28} className="mx-auto mb-2 text-slate-300"/><p className="text-xs text-slate-500">No hay alumnos para mostrar.</p></div> : <table className="w-full min-w-[800px] text-left text-xs"><thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-400"><tr>{['Alumno', 'Código', 'Correo', 'Cursos', 'Estado'].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{visibles.map((alumno) => <tr key={alumno.id}><td className="px-4 py-4 font-bold">{alumno.nombres} {alumno.apellidos}</td><td className="px-4 py-4">{alumno.codigo_alumno}</td><td className="px-4 py-4">{alumno.correo}</td><td className="whitespace-pre-line px-4 py-4">{alumno.cursos || 'Sin matrícula'}</td><td className="px-4 py-4">{alumno.activo ? 'Activo' : 'Inactivo'}</td></tr>)}</tbody></table>}</section>
+      <section className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">{visibles.length === 0 ? <div className="p-12 text-center"><Users size={28} className="mx-auto mb-2 text-slate-300"/><p className="text-xs text-slate-500">No hay alumnos para mostrar.</p></div> : <table className="w-full min-w-[950px] text-left text-xs"><thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-400"><tr>{['Alumno', 'Código', 'Correo', 'Cursos y matrícula', 'Cuenta'].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{visibles.map((alumno) => <tr key={alumno.id}><td className="px-4 py-4 font-bold">{alumno.nombres} {alumno.apellidos}</td><td className="px-4 py-4">{alumno.codigo_alumno}</td><td className="px-4 py-4">{alumno.correo}</td><td className="px-4 py-4">{alumno.matriculas.length ? <ul className="space-y-2">{alumno.matriculas.map((matricula) => { const key = `${alumno.id}:${matricula.cursoId}`; return <li key={matricula.cursoId} className="flex items-center gap-2"><span>{matricula.codigo} · {matricula.nombre} · Sec. {matricula.seccion}</span><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${matricula.estado === 'activa' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{matricula.estado === 'activa' ? 'Activa' : 'Retirada'}</span>{matricula.estado === 'activa' && <button disabled={retirando === key} onClick={() => void retirar(alumno, matricula)} aria-label={`Retirar de ${matricula.codigo}`} title="Retirar del curso" className="rounded-lg p-1 text-rose-700 hover:bg-rose-50 disabled:opacity-50"><UserMinus size={14}/></button>}</li>; })}</ul> : <span className="text-slate-400">Sin matrícula</span>}</td><td className="px-4 py-4">{alumno.activo ? 'Activa' : 'Inactiva'}</td></tr>)}</tbody></table>}</section>
     </main>
   </div></AdminLayout>;
 }

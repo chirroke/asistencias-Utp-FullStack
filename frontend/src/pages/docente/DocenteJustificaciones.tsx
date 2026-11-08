@@ -4,7 +4,7 @@ import { ArrowLeft, ClipboardList, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../context/Authcontext';
 import { AdminLayout } from '../../components/AdminLayout';
 import {
-  listarJustificacionesAdmin, listarJustificacionesDocente, obtenerEvidenciaJustificacion,
+  listarJustificacionesAdmin, listarJustificacionesDocente, obtenerEvidenciaJustificacionDocente,
   obtenerEvidenciaJustificacionAdmin, resolverJustificacion, resolverJustificacionAdmin,
 } from '../../services/api';
 
@@ -33,7 +33,7 @@ export function DocenteJustificaciones() {
   const visibles = useMemo(() => filtro === 'todas' ? items : items.filter((item) => item.estado === filtro), [filtro, items]);
   const abrirEvidencia = async (id: string) => {
     try {
-      const blob = await (esAdmin ? obtenerEvidenciaJustificacionAdmin(id) : obtenerEvidenciaJustificacion(id));
+      const blob = await (esAdmin ? obtenerEvidenciaJustificacionAdmin(id) : obtenerEvidenciaJustificacionDocente(id));
       const url = URL.createObjectURL(blob);
       const windowPreview = window.open(url, '_blank', 'noopener,noreferrer');
       if (!windowPreview) { const link = document.createElement('a'); link.href = url; link.download = 'evidencia-asistencia'; link.click(); }

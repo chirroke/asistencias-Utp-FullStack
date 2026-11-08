@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Activity, AlertCircle, ArrowLeft, Bell, BookOpen,
@@ -11,7 +11,7 @@ import { enviarJustificacion, obtenerResumenAlumno } from '../../services/api';
 type CursoAlumno = { id: string; codigo: string; nombre: string; seccion: string; docente: string | null; sesion_activa_id: string | null; total_clases: number; presentes: number; faltas: number; justificadas: number };
 type Falla = { asistencia_id: string; fecha: string; curso_id: string; curso: string; seccion: string };
 type Solicitud = { id: string; motivo: string; estado: string; creado_en: string; archivo_nombre: string | null; curso: string; fecha_sesion: string };
-type Registro = { asistencia_id: string; estado: 'presente' | 'falta' | 'justificada'; registrado_en: string | null; sesion_id: string; fecha: string; hora_inicio: string; curso_id: string; curso: string; codigo: string; seccion: string };
+type Registro = { asistencia_id: string; estado: 'presente' | 'tardanza' | 'falta' | 'justificada'; registrado_en: string | null; sesion_id: string; fecha: string; hora_inicio: string; curso_id: string; curso: string; codigo: string; seccion: string };
 type Resumen = {
   alumno: { nombres: string; apellidos: string; codigo: string; correo?: string };
   resumen: { clases: number; presentes: number; faltas: number; justificadas: number; porcentajeFaltas: number };
@@ -42,6 +42,7 @@ export const AlumnoDashboard = () => {
   const [motivo, setMotivo] = useState('Descanso Médico');
   const [descripcion, setDescripcion] = useState('');
   const [archivo, setArchivo] = useState<File | null>(null);
+  const archivoInput = useRef<HTMLInputElement>(null);
   const [enviando, setEnviando] = useState(false);
 
   const cargar = useCallback(async () => {
@@ -66,6 +67,7 @@ export const AlumnoDashboard = () => {
     try {
       await enviarJustificacion(faltaId, `${motivo}: ${descripcion.trim()}`, archivo);
       setFaltaId(''); setDescripcion(''); setArchivo(null);
+      if (archivoInput.current) archivoInput.current.value = '';
       await cargar();
       setVista('inicio');
     } catch (err) {
@@ -81,7 +83,6 @@ export const AlumnoDashboard = () => {
   const totalClasesCurso = data?.cursos.find((curso) => curso.id === cursoReporte)?.total_clases || 0;
   const porcentajeFaltasCurso = totalClasesCurso ? Math.round((faltasPorCurso / totalClasesCurso) * 1000) / 10 : 0;
   const activa = data?.cursos.find((curso) => curso.sesion_activa_id);
-  const otrosCursos = data?.cursos.filter((curso) => curso.id !== activa?.id) || [];
   const iniciales = (data?.alumno.nombres || user?.nombres || 'A').slice(0, 1) + (data?.alumno.apellidos || user?.apellidos || '').slice(0, 1);
   const nombre = `${data?.alumno.nombres || user?.nombres || 'Alumno'} ${data?.alumno.apellidos || user?.apellidos || ''}`.trim();
 
@@ -94,10 +95,10 @@ export const AlumnoDashboard = () => {
         </div>
         <button onClick={() => void cargar()} aria-label="Actualizar información" className="shrink-0 rounded-full p-2 text-slate-300 hover:bg-white/10"><Bell size={18}/></button>
       </div>
-      <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 py-1 text-[10px] font-bold text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400"/> Matrícula Activa · 2026-I</span>
+      <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 py-1 text-[10px] font-bold text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400"/> Matrícula activa</span>
     </header> : <header className="sticky top-0 z-20 flex items-center gap-3 bg-[#002238] px-5 py-4 text-white shadow-md">
       <button onClick={() => setVista('inicio')} aria-label="Volver al inicio" className="rounded-full p-1.5 hover:bg-white/10"><ArrowLeft size={19}/></button>
-      <div><h1 className="text-base font-bold">{vista === 'reporte' ? 'Récord de Asistencia y DPI' : vista === 'justificar' ? 'Subir Justificación' : 'Mi Perfil'}</h1><p className="text-[11px] text-slate-300">{vista === 'justificar' ? 'La solicitud será revisada por el docente' : 'Asistencia UTP · Ciclo 2026-I'}</p></div>
+      <div><h1 className="text-base font-bold">{vista === 'reporte' ? 'Récord de Asistencia y DPI' : vista === 'justificar' ? 'Subir Justificación' : 'Mi Perfil'}</h1><p className="text-[11px] text-slate-300">{vista === 'justificar' ? 'La solicitud será revisada por el docente' : 'Asistencia UTP'}</p></div>
     </header>}
 
     <main className="space-y-3.5 px-4 pb-28 pt-4">
@@ -114,17 +115,30 @@ export const AlumnoDashboard = () => {
             </div>
           </section>
 
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 p-4">
+              <div><h2 className="text-sm font-extrabold text-[#002b49]">Faltas por justificar</h2><p className="mt-1 text-[11px] text-slate-500">Solo sesiones sin una solicitud enviada</p></div>
+              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-800">{data.faltasJustificables.length} pendientes</span>
+            </div>
+            {data.faltasJustificables.length ? <div className="overflow-x-auto">
+              <table className="w-full min-w-[480px] text-left text-xs">
+                <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-3">Curso / sección</th><th className="px-3 py-3">Fecha de falta</th><th className="px-3 py-3 text-right">Acción</th></tr></thead>
+                <tbody className="divide-y divide-slate-100">{data.faltasJustificables.map((falta) => <tr key={falta.asistencia_id} className="hover:bg-slate-50/70">
+                  <td className="px-3 py-3"><b className="block max-w-52 truncate text-[#002b49]">{falta.curso}</b><span className="mt-1 block text-[10px] text-slate-500">Sección {falta.seccion}</span></td>
+                  <td className="px-3 py-3 text-slate-600">{fechaCorta(falta.fecha)}</td>
+                  <td className="px-3 py-3 text-right"><button onClick={() => { setCursoJustificar(falta.curso_id); setFaltaId(falta.asistencia_id); setVista('justificar'); }} className="rounded-lg bg-[#c8102e] px-3 py-2 text-[10px] font-bold text-white hover:bg-[#a60d26]">Justificar</button></td>
+                </tr>)}</tbody>
+              </table>
+            </div> : <div className="p-5 text-center"><CheckCircle2 size={22} className="mx-auto mb-2 text-emerald-600"/><p className="text-xs font-semibold text-slate-700">No tienes faltas pendientes de justificar</p><p className="mt-1 text-[10px] text-slate-500">Cuando exista una falta sin solicitud, aparecerá aquí.</p></div>}
+            <p className="border-t border-slate-100 px-4 py-3 text-[10px] leading-4 text-slate-400">Al enviar la solicitud, esa falta se quitará de esta lista y aparecerá en “Mis solicitudes”.</p>
+          </section>
+
           {activa ? <section className="rounded-2xl border-2 border-[#c8102e] bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-wider text-[#c8102e]"><span className="h-2 w-2 rounded-full bg-[#c8102e]"/> Clase activa</div>
             <h2 className="text-sm font-extrabold text-[#002b49]">{activa.nombre}</h2>
             <p className="mt-1 text-xs text-slate-500">Sección {activa.seccion} · {activa.codigo} · {activa.docente || 'Docente asignado'}</p>
             <button onClick={() => navigate(`/alumno/escaneo?sesion=${activa.sesion_activa_id}`)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#c8102e] py-3 text-sm font-extrabold text-white shadow-sm hover:bg-[#a60d26]"><Camera size={17}/> Marcar Asistencia a Clase</button>
           </section> : <section className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-sm font-bold text-[#002b49]">No tienes una clase activa</p><p className="mt-1 text-xs text-slate-500">Cuando tu docente inicie una sesión, aquí podrás escanear el QR.</p></section>}
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="mb-2 flex items-center justify-between"><h2 className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Próximas clases</h2><BookOpen size={16} className="text-[#c8102e]"/></div>
-            {otrosCursos.length ? <div className="divide-y divide-slate-100">{otrosCursos.map((curso) => <div key={curso.id} className="flex items-center justify-between gap-3 py-3"><div className="min-w-0"><p className="truncate text-sm font-bold text-[#002b49]">{curso.nombre}</p><p className="text-xs text-slate-500">Sección {curso.seccion} · {curso.codigo}</p></div><span className="shrink-0 text-[10px] text-slate-400">{curso.sesion_activa_id ? 'En curso' : 'Horario no registrado'}</span></div>)}</div> : <p className="py-3 text-xs text-slate-500">No hay otras sesiones programadas para mostrar.</p>}
-          </section>
 
           <button onClick={() => setVista('justificar')} className="flex w-full items-center justify-between rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left text-amber-800 shadow-sm"><span className="flex items-center gap-3"><span className="rounded-xl bg-amber-100 p-2"><ClipboardList size={18}/></span><span><b className="block text-sm">Justificaciones</b><small className="text-xs">{data.justificaciones.filter((item) => item.estado === 'pendiente').length} solicitudes pendientes · {data.faltasJustificables.length} faltas por justificar</small></span></span><ArrowLeft size={16} className="rotate-180"/></button>
         </>}
@@ -143,8 +157,8 @@ export const AlumnoDashboard = () => {
               <label className="block text-xs font-semibold text-slate-600">Falta seleccionada<select required value={faltaId} onChange={(event) => setFaltaId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">{faltasCurso.map((falta) => <option key={falta.asistencia_id} value={falta.asistencia_id}>{fechaCorta(falta.fecha)} · {falta.curso}</option>)}</select></label>
               <label className="block text-xs font-semibold text-slate-600">Motivo<select value={motivo} onChange={(event) => setMotivo(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"><option>Descanso Médico</option><option>Emergencia Familiar</option><option>Problema de transporte</option><option>Otro motivo</option></select></label>
               <label className="block text-xs font-semibold text-slate-600">Descripción<textarea required minLength={5} maxLength={1000} value={descripcion} onChange={(event) => setDescripcion(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 p-3 text-sm" rows={4} placeholder="Explica brevemente el motivo de tu falta"/></label>
-              <label className="block text-xs font-semibold text-slate-600">Documento de sustento<input required type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setArchivo(event.target.files?.[0] || null)} className="mt-2 block w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-[#c8102e] file:px-3 file:py-2 file:font-bold file:text-white"/><span className="mt-1 block text-[10px] font-normal text-slate-400">PDF, JPG o PNG · máximo 5 MB</span></label>
-              {archivo && <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-700"><FileText size={17}/><span className="min-w-0 flex-1 truncate">{archivo.name}</span><Check size={15}/></div>}
+              <label className="block text-xs font-semibold text-slate-600">Documento de sustento<input ref={archivoInput} required type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setArchivo(event.target.files?.[0] || null)} className="mt-2 block w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-[#c8102e] file:px-3 file:py-2 file:font-bold file:text-white"/><span className="mt-1 block text-[10px] font-normal text-slate-400">PDF, JPG o PNG · máximo 5 MB. Puedes cambiarlo antes de enviar.</span></label>
+              {archivo && <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-700"><FileText size={17}/><span className="min-w-0 flex-1 truncate">{archivo.name}</span><button type="button" onClick={() => { setArchivo(null); if (archivoInput.current) archivoInput.current.value = ''; }} className="shrink-0 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 font-bold text-emerald-800 hover:bg-emerald-100">Quitar</button><Check size={15}/></div>}
             </section>
             <button disabled={!data.faltasJustificables.length || !archivo || enviando} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#c8102e] py-3.5 text-sm font-extrabold text-white disabled:opacity-50"><Upload size={17}/>{enviando ? 'Enviando solicitud…' : 'Enviar Justificación al Docente'}</button>
           </form>
@@ -152,9 +166,9 @@ export const AlumnoDashboard = () => {
         </>}
 
         {vista === 'perfil' && <>
-          <section className="bg-[#002b49] px-5 py-7 text-center text-white"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#c8102e] text-xl font-extrabold">{iniciales.toUpperCase()}</div><h2 className="mt-3 text-lg font-extrabold">{nombre}</h2><p className="mt-1 text-xs text-slate-300">{data.alumno.codigo}{user?.carrera ? ` · ${user.carrera}` : ''}</p>{user?.ciclo && <p className="mt-1 text-xs text-slate-300">{user.ciclo}{user.sede ? ` · ${user.sede}` : ''}</p>}<span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-[10px] font-bold text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400"/> Matrícula Activa 2026-I</span></section>
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><h3 className="mb-3 text-xs font-extrabold uppercase tracking-wide text-slate-500">Información académica</h3><dl className="divide-y divide-slate-100 text-xs">{[['Código Alumno', data.alumno.codigo], ['Carrera', user?.carrera || 'No registrada'], ['Ciclo', user?.ciclo || '2026-I'], ['Sede', user?.sede || 'No registrada'], ['Correo', user?.correo || 'No registrado']].map(([label, value]) => <div key={label} className="flex justify-between gap-3 py-3"><dt className="text-slate-500">{label}</dt><dd className="text-right font-semibold text-[#002b49]">{value}</dd></div>)}</dl></section>
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><h3 className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-slate-700"><Fingerprint size={17} className="text-blue-600"/> Seguridad biométrica</h3><div className="mt-3 flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 p-3"><ShieldCheck size={20} className="text-blue-600"/><span className="flex-1"><b className="block text-xs text-blue-900">Reconocimiento facial</b><small className="text-[10px] text-blue-700">{user?.embeddingRegistrado ? 'Patrón registrado' : 'No registrado en tu cuenta'}</small></span><span className={`h-2 w-2 rounded-full ${user?.embeddingRegistrado ? 'bg-emerald-500' : 'bg-slate-300'}`}/></div></section>
+          <section className="bg-[#002b49] px-5 py-7 text-center text-white"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#c8102e] text-xl font-extrabold">{iniciales.toUpperCase()}</div><h2 className="mt-3 text-lg font-extrabold">{nombre}</h2><p className="mt-1 text-xs text-slate-300">{data.alumno.codigo}{user?.carrera ? ` · ${user.carrera}` : ''}</p>{user?.ciclo && <p className="mt-1 text-xs text-slate-300">{user.ciclo}{user.sede ? ` · ${user.sede}` : ''}</p>}<span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-[10px] font-bold text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400"/> Matrícula activa</span></section>
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><h3 className="mb-3 text-xs font-extrabold uppercase tracking-wide text-slate-500">Información académica</h3><dl className="divide-y divide-slate-100 text-xs">{[['Código Alumno', data.alumno.codigo], ['Carrera', user?.carrera || 'No registrada'], ['Ciclo', user?.ciclo || 'No registrado'], ['Sede', user?.sede || 'No registrada'], ['Correo', user?.correo || 'No registrado']].map(([label, value]) => <div key={label} className="flex justify-between gap-3 py-3"><dt className="text-slate-500">{label}</dt><dd className="text-right font-semibold text-[#002b49]">{value}</dd></div>)}</dl></section>
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><h3 className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-slate-700"><Fingerprint size={17} className="text-blue-600"/> Seguridad biométrica</h3><div className="mt-3 flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 p-3"><ShieldCheck size={20} className="text-blue-600"/><span className="flex-1"><b className="block text-xs text-blue-900">Reconocimiento facial</b><small className="text-[10px] text-blue-700">{user?.embeddingRegistrado ? 'Patrón registrado' : 'No registrado en tu cuenta'}</small></span><span className={`h-2 w-2 rounded-full ${user?.embeddingRegistrado ? 'bg-emerald-500' : 'bg-slate-300'}`}/></div><button onClick={() => navigate('/alumno/rostro')} className="mt-3 w-full rounded-xl border border-slate-200 py-2.5 text-xs font-bold text-[#002b49] hover:bg-slate-50">{user?.embeddingRegistrado ? 'Actualizar foto facial' : 'Registrar foto facial'}</button></section>
           <button onClick={logout} className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#c8102e] py-3 text-sm font-bold text-[#c8102e]"><LogOut size={16}/> Cerrar sesión</button>
         </>}
       </>}

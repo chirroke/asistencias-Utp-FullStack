@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, CalendarDays, Search, X } from 'lucide-react';
-import { obtenerDetalleSesion, obtenerHistorialCurso } from '../../services/api';
+import { obtenerCursosAdmin, obtenerDetalleSesion, obtenerHistorialCurso, obtenerMisCursos } from '../../services/api';
 import { useAuth } from '../../context/Authcontext';
 
 type SesionHistorial = {
@@ -27,6 +27,8 @@ type DetalleSesion = {
   }>;
 };
 
+type CursoHistorial = { id: string; codigo: string; nombre: string; seccion: string; docente?: string };
+
 export function DocenteHistorial() {
   const { cursoId = '' } = useParams();
   const { user } = useAuth();
@@ -34,6 +36,7 @@ export function DocenteHistorial() {
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
   const [sesiones, setSesiones] = useState<SesionHistorial[]>([]);
+  const [cursos, setCursos] = useState<CursoHistorial[]>([]);
   const [detalle, setDetalle] = useState<DetalleSesion | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
@@ -53,6 +56,22 @@ export function DocenteHistorial() {
 
   useEffect(() => { void Promise.resolve().then(cargar); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursoId]);
+
+  useEffect(() => {
+    const cargarCursos = async () => {
+      try {
+        if (user?.rol === 'admin') {
+          const data = await obtenerCursosAdmin() as { cursos: CursoHistorial[] };
+          setCursos(data.cursos || []);
+        } else {
+          setCursos(await obtenerMisCursos() as CursoHistorial[]);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'No se pudieron cargar los cursos.');
+      }
+    };
+    void cargarCursos();
+  }, [user?.rol]);
 
   const verDetalle = async (id: string) => {
     try { setDetalle(await obtenerDetalleSesion(id)); }
@@ -74,6 +93,14 @@ export function DocenteHistorial() {
     }
   };
 
+  const buscar = () => {
+    if (desde && hasta && desde > hasta) {
+      setError('La fecha “Desde” no puede ser posterior a “Hasta”.');
+      return;
+    }
+    void cargar();
+  };
+
   const volver = () => navigate(user?.rol === 'admin' ? '/admin/dashboard' : '/docente/dashboard');
 
   return <div className="min-h-screen bg-slate-50 text-slate-800">
@@ -83,11 +110,12 @@ export function DocenteHistorial() {
     </header>
     <main className="mx-auto max-w-6xl space-y-5 p-4 md:p-6">
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center gap-2"><Search size={16} className="text-[#c8102e]"/><h2 className="text-sm font-bold">Filtrar por fecha</h2></div>
+        <div className="mb-4 flex items-center gap-2"><Search size={16} className="text-[#c8102e]"/><h2 className="text-sm font-bold">Filtrar por curso y fecha</h2></div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label className="flex flex-1 flex-col gap-1 text-xs font-semibold text-slate-500">Curso<select value={cursoId} onChange={(event) => { if (event.target.value) navigate(`/docente/historial/${event.target.value}`); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"><option value="" disabled>Selecciona un curso</option>{cursos.map((curso) => <option key={curso.id} value={curso.id}>{curso.codigo} · {curso.nombre} · Sección {curso.seccion}{curso.docente ? ` · ${curso.docente}` : ''}</option>)}</select></label>
           <label className="flex flex-1 flex-col gap-1 text-xs font-semibold text-slate-500">Desde<input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-800"/></label>
           <label className="flex flex-1 flex-col gap-1 text-xs font-semibold text-slate-500">Hasta<input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-800"/></label>
-          <button onClick={() => void cargar()} className="rounded-xl bg-[#c8102e] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#a60d26]">Buscar</button>
+          <button onClick={buscar} className="rounded-xl bg-[#c8102e] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#a60d26]">Buscar</button>
           <button onClick={() => void limpiarFiltros()} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold hover:bg-slate-50">Limpiar</button>
         </div>
       </section>

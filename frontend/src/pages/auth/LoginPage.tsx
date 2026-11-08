@@ -98,7 +98,7 @@ export const LoginPage: React.FC = () => {
 
     if (!email) nuevos.correo = 'Ingresa tu correo institucional.';
     else if (!EMAIL_REGEX.test(email)) nuevos.correo = 'El correo no tiene un formato válido.';
-    else if (!email.endsWith('@utp.edu.pe')) nuevos.correo = 'Usa tu correo institucional @utp.edu.pe.';
+    else if (!email.endsWith('@utp.edu.pe') && !email.endsWith('@example.com')) nuevos.correo = 'Usa tu correo institucional UTP o una cuenta de demostración @example.com.';
 
     if (!contrasena) nuevos.contrasena = 'Ingresa tu contraseña.';
 
@@ -142,7 +142,7 @@ export const LoginPage: React.FC = () => {
               Portal de Control <br />de Asistencia UTP
             </h1>
             <p className="text-slate-300 text-xs leading-relaxed mb-8">
-              Plataforma institucional para docentes, alumnos y autoridades. Triple factor de validación: QR dinámico, geolocalización de aula y biometría facial en tiempo real.
+              Plataforma institucional para docentes, alumnos y autoridades. Control de asistencia con QR dinámico, matrícula en el curso y comparación facial.
             </p>
 
             <div className="grid grid-cols-3 gap-2 mb-8">
@@ -157,7 +157,7 @@ export const LoginPage: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                <span className="text-[10px] font-semibold text-slate-200">Geofencing<br />GPS</span>
+                <span className="text-[10px] font-semibold text-slate-200">Matrícula<br />activa</span>
               </div>
               <div className="bg-[#0b3552]/80 border border-cyan-800/40 rounded-xl p-3 text-center flex flex-col items-center justify-center">
                 <svg className="w-5 h-5 mb-1.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -174,8 +174,8 @@ export const LoginPage: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
               <div className="text-[11px] text-slate-300">
-                <p className="font-semibold text-white">Sesión Segura Activa</p>
-                <p className="text-slate-400">Validación de aula sincronizada</p>
+                <p className="font-semibold text-white">Acceso por roles</p>
+                <p className="text-slate-400">Docente, alumno y administrador</p>
               </div>
             </div>
             <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">✓</span>
@@ -207,7 +207,7 @@ export const LoginPage: React.FC = () => {
                     setCorreo(e.target.value);
                     if (errores.correo) setErrores((prev) => ({ ...prev, correo: undefined }));
                   }}
-                  placeholder="r.quispe@utp.edu.pe o u22221422@utp.edu.pe"
+                  placeholder="nombre.apellido@utp.edu.pe"
                   aria-invalid={!!errores.correo}
                   className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-[#002238] focus:outline-none text-slate-800 ${
                     errores.correo ? 'border-red-400' : 'border-slate-200'
