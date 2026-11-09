@@ -1,36 +1,72 @@
-# Publicar la demo de Asistencia UTP en Render
+# Despliegue separado en Render
 
-Este despliegue junta React y Spring Boot en una sola URL. La base se crea vacia y se inicializa con el esquema y las cuentas ficticias de `backend-spring/database/demo-seed.sql`; no se sube `asistencia_completa.backup` ni el `.env.local`.
+El Blueprint `render.yaml` define tres recursos independientes:
 
-## Limites del plan gratuito
+- **Frontend:** React/Vite como sitio estático.
+- **Backend:** API Spring Boot en un servicio Docker.
+- **Base de datos:** PostgreSQL.
 
-- El enlace `*.onrender.com` queda alojado aunque la laptop este apagada.
-- El servicio web gratuito se duerme tras 15 minutos sin trafico. La primera visita despues puede tardar cerca de un minuto.
-- La base de datos gratuita de Render vence a los 30 dias. Para conservar los datos y disponibilidad a largo plazo hay que pasar la base a un plan pagado o usar otro proveedor persistente.
-- El servicio gratuito bloquea el envio SMTP en los puertos comunes 25, 465 y 587; no se debe prometer la recuperacion de contrasena por correo en esta demo.
+El frontend lee `VITE_API_URL`; Spring y el WebSocket aceptan el dominio del frontend mediante `FRONTEND_ORIGINS`. El backend ya no incluye el build React en el JAR.
 
-## Pasos de preparacion y publicacion
+## 1. Subir el proyecto a un repositorio Git
 
-1. Revisa el `Dockerfile`, `.dockerignore`, `render.yaml` y esta guia.
-2. Publica el codigo del proyecto en un repositorio Git al que tengas acceso desde Render. No incluyas `.env.local`, backups, datos reales, `node_modules` ni `target`.
-3. En Render, crea un **Blueprint** desde ese repositorio y selecciona el plan gratuito para el servicio y Postgres. El archivo `render.yaml` configura ambos en Virginia.
-4. Espera a que Render cree la base y aparezca su direccion externa en **Connect**. El servicio web puede abrir la portada antes de cargar el esquema.
-5. En PowerShell, desde `backend-spring`, ejecuta `.Inicializar-Demo-Render.ps1`. Escribe los campos de conexion mostrados por Render y pega la contrasena solo en el prompt seguro del script. El script rechaza una base que ya tenga `public.usuario` y no borra datos.
-6. Espera el siguiente despliegue/reinicio del servicio y comprueba `https://asistencia-qr-avance2.onrender.com/api/health`. Debe responder `UP` con backend Spring Boot y PostgreSQL.
-7. Abre la URL principal y usa las cuentas ficticias de abajo.
+Render necesita poder leer el repositorio conectado. Conserva el repositorio privado y verifica que no estén versionados `.env`, `.env.local`, contraseñas, backups ni dumps. El `.gitignore` del proyecto excluye esos archivos.
 
-Si el nombre de servicio no esta disponible y Render asigna otra URL, cambia `FRONTEND_ORIGINS` en el servicio por el origen real `https://<tu-servicio>.onrender.com` y vuelve a desplegar. Esto tambien permite la conexion WebSocket del docente.
+## 2. Crear el Blueprint
 
-## Cuentas ficticias
+1. En el panel de Render, selecciona **New > Blueprint**.
+2. Conecta GitHub y elige el repositorio y la rama que contienen `render.yaml`.
+3. Deja la ruta del Blueprint como `render.yaml` si está en la raíz del repositorio.
+4. Revisa el resumen: debe mostrar un sitio estático, un servicio web y una base PostgreSQL.
+5. Confirma **Deploy Blueprint**.
 
-Las tres cuentas usan `Demo2026!` y contienen solo nombres, codigos y cursos inventados:
+Los tres recursos se crean en Virginia. El frontend compila desde `frontend`; el servicio Spring usa el `Dockerfile` de la raíz. La conexión a PostgreSQL se establece con las variables `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` y `DB_PASSWORD` del servicio de base de datos.
+
+## 3. Verificar los dominios y variables
+
+Render propone estos dominios según los nombres del Blueprint:
+
+- Frontend: `https://asistencia-qr-frontend.onrender.com`
+- API: `https://asistencia-qr-api.onrender.com`
+
+Si Render muestra dominios distintos, actualiza:
+
+- En **frontend > Environment**, `VITE_API_URL` = `https://<dominio-real-de-la-api>/api`.
+- En **API > Environment**, `FRONTEND_ORIGINS` = `https://<dominio-real-del-frontend>`.
+
+Guarda los cambios y vuelve a desplegar ambos servicios. `VITE_API_URL` se usa durante el build del frontend.
+
+## 4. Inicializar la base sintética
+
+La base nueva se crea vacía. No cargues el backup personal/institucional en una base pública. El script configura el esquema, la migración de reprogramación y cuentas y cursos inventados.
+
+1. Instala `psql` de PostgreSQL 18 o superior en la laptop.
+2. En Render, abre la base `asistencia-qr-demo-db` y entra a **Connect**. Usa la conexión externa para llenar los datos que pide el script.
+3. En PowerShell, ejecuta:
+
+```powershell
+cd "D:\TDG\UTP\UTP-CICLO10\FS\SistemaAsistenciaQR\SistemaAsistenciaQR\backend-spring"
+.\Inicializar-Demo-Render.ps1
+```
+
+El script solicita host, puerto, base, usuario y contraseña; la contraseña no se muestra. No compartas esos datos en el chat. El script se detiene si la base ya contiene `public.usuario`, para evitar borrar o sobrescribir tablas existentes. Ejecútalo una sola vez sobre la base recién creada.
+
+## 5. Comprobar la aplicación
+
+1. Abre `https://<dominio-real-de-la-api>/api/health`. Debe responder con estado `UP`, backend `Spring Boot` y base `PostgreSQL`.
+2. Abre el dominio público del frontend.
+3. Prueba inicio de sesión con las cuentas sintéticas:
 
 | Rol | Correo |
 | --- | --- |
 | Docente | `demo.docente@example.com` |
 | Administrador | `demo.admin@example.com` |
-| Alumna 1 | `demo.alumno1@example.com` |
-| Alumno 2 | `demo.alumno2@example.com` |
-| Alumno 3 | `demo.alumno3@example.com` |
+| Alumna | `demo.alumno1@example.com` |
 
-La base incluye dos cursos sinteticos para el docente en el periodo activo `2026-II`.
+Contraseña de demostración para esas cuentas: `Demo2026!`.
+
+## Límites del plan gratuito
+
+- El servicio API gratuito se duerme después de 15 minutos sin tráfico; la siguiente llamada puede tardar cerca de un minuto.
+- La base PostgreSQL gratuita vence a los 30 días. Para conservar los datos después de ese plazo, cambia la base a un plan pagado antes de su vencimiento.
+- El SMTP saliente en los puertos comunes 25, 465 y 587 está bloqueado en los servicios gratuitos; no presentes la recuperación por correo como verificada.

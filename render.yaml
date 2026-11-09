@@ -1,12 +1,28 @@
 services:
+  # Frontend React/Vite. Render sirve los archivos estaticos desde su CDN.
   - type: web
-    name: asistencia-qr-avance2
+    name: asistencia-qr-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://asistencia-qr-api.onrender.com/api
+
+  # API Spring Boot. Docker usa el contexto raiz para copiar backend-spring.
+  - type: web
+    name: asistencia-qr-api
     runtime: docker
     plan: free
     region: virginia
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    healthCheckPath: /
+    healthCheckPath: /api/health
     envVars:
       - key: DB_HOST
         fromDatabase:
@@ -33,7 +49,7 @@ services:
       - key: PASSWORD_RESET_SECRET
         generateValue: true
       - key: FRONTEND_ORIGINS
-        value: https://asistencia-qr-avance2.onrender.com
+        value: https://asistencia-qr-frontend.onrender.com
 
 databases:
   - name: asistencia-qr-demo-db

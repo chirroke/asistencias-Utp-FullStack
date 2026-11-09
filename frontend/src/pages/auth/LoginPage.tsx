@@ -207,7 +207,7 @@ export const LoginPage: React.FC = () => {
                     setCorreo(e.target.value);
                     if (errores.correo) setErrores((prev) => ({ ...prev, correo: undefined }));
                   }}
-                  placeholder="nombre.apellido@utp.edu.pe"
+                  placeholder="correo@utp.edu.pe"
                   aria-invalid={!!errores.correo}
                   className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-[#002238] focus:outline-none text-slate-800 ${
                     errores.correo ? 'border-red-400' : 'border-slate-200'
@@ -349,7 +349,7 @@ export const LoginPage: React.FC = () => {
                     type="email"
                     value={recoveryEmail}
                     onChange={(e) => setRecoveryEmail(e.target.value)}
-                    placeholder="u00000000@utp.edu.pe o r.docente@utp.edu.pe"
+                    placeholder="alumno@utp.edu.pe o docente@utp.edu.pe"
                     className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#002238] focus:outline-none"
                   />
                 </div>
