@@ -19,12 +19,18 @@ export function DocenteReprogramarPage() {
   const [cargando, setCargando] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
+  const [errorCursos, setErrorCursos] = useState('');
+  const [errorHistorial, setErrorHistorial] = useState('');
   const [aviso, setAviso] = useState('');
 
   useEffect(() => {
-    void Promise.all([obtenerMisCursos(), obtenerHistorialReprogramaciones()])
-      .then(([lista, cambios]) => { setCursos(lista); setHistorial(cambios); })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'No se pudo cargar la información.'))
+    void Promise.allSettled([obtenerMisCursos(), obtenerHistorialReprogramaciones()])
+      .then(([resultadoCursos, resultadoHistorial]) => {
+        if (resultadoCursos.status === 'fulfilled') setCursos(resultadoCursos.value as Curso[]);
+        else setErrorCursos(resultadoCursos.reason instanceof Error ? resultadoCursos.reason.message : 'No se pudieron cargar tus cursos.');
+        if (resultadoHistorial.status === 'fulfilled') setHistorial(resultadoHistorial.value);
+        else setErrorHistorial(resultadoHistorial.reason instanceof Error ? resultadoHistorial.reason.message : 'No se pudo cargar el historial.');
+      })
       .finally(() => setCargando(false));
   }, []);
 
@@ -48,7 +54,8 @@ export function DocenteReprogramarPage() {
       <header className="rounded-2xl bg-[#002238] p-6 text-white shadow-sm">
         <div className="flex items-center gap-3"><span className="rounded-xl bg-white/10 p-3"><CalendarClock size={22}/></span><div><h1 className="text-xl font-bold">Reprogramar clase</h1><p className="mt-1 text-sm text-slate-300">Registra el cambio a otra sección del mismo curso.</p></div></div>
       </header>
-      {cargando ? <p className="rounded-xl bg-white p-6 text-center text-sm text-slate-500">Cargando tus secciones…</p> : !curso ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">No encontramos el curso seleccionado.</p> : <>
+      {cargando ? <p className="rounded-xl bg-white p-6 text-center text-sm text-slate-500">Cargando tus secciones…</p> : errorCursos ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">No se pudieron cargar tus cursos: {errorCursos}</p> : !curso ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">No encontramos el curso seleccionado.</p> : <>
+        {errorHistorial && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">Los cursos cargaron, pero no se pudo cargar el historial: {errorHistorial}</p>}
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Clase que cambia</p>
           <h2 className="mt-1 text-lg font-bold">{curso.codigo} · {curso.nombre}</h2>
