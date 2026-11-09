@@ -49,10 +49,7 @@ services:
       - key: PASSWORD_RESET_SECRET
         generateValue: true
       - key: FRONTEND_ORIGINS
-        fromService:
-          name: asistencia-qr-frontend
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
+        value: https://asistencia-qr-frontend-bmxp.onrender.com
 
 databases:
   - name: asistencia-qr-demo-db
