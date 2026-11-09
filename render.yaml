@@ -12,7 +12,7 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        value: https://asistencia-qr-api.onrender.com/api
+        value: https://asistencia-qr-api-nsz3.onrender.com/api
 
   # API Spring Boot. Docker usa el contexto raiz para copiar backend-spring.
   - type: web
@@ -49,7 +49,10 @@ services:
       - key: PASSWORD_RESET_SECRET
         generateValue: true
       - key: FRONTEND_ORIGINS
-        value: https://asistencia-qr-frontend.onrender.com
+        fromService:
+          name: asistencia-qr-frontend
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
 
 databases:
   - name: asistencia-qr-demo-db

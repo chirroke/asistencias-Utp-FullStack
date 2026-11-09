@@ -10,6 +10,7 @@ import {
   obtenerCheckinDocente,
   obtenerTicketAsistencia,
   registrarAsistenciaManual,
+  API_URL,
 } from '../../services/api';
 
 type AlumnoEnVivo = {
@@ -27,8 +28,6 @@ interface Props {
   cursoNombre: string;
   cursoSeccion: string;
 }
-
-const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export function DocenteProyeccion({ sesionId, cursoNombre, cursoSeccion }: Props) {
   const [qrPayload, setQrPayload] = useState('');

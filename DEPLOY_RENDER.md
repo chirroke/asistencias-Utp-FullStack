@@ -24,17 +24,7 @@ Los tres recursos se crean en Virginia. El frontend compila desde `frontend`; el
 
 ## 3. Verificar los dominios y variables
 
-Render propone estos dominios según los nombres del Blueprint:
-
-- Frontend: `https://asistencia-qr-frontend.onrender.com`
-- API: `https://asistencia-qr-api.onrender.com`
-
-Si Render muestra dominios distintos, actualiza:
-
-- En **frontend > Environment**, `VITE_API_URL` = `https://<dominio-real-de-la-api>/api`.
-- En **API > Environment**, `FRONTEND_ORIGINS` = `https://<dominio-real-del-frontend>`.
-
-Guarda los cambios y vuelve a desplegar ambos servicios. `VITE_API_URL` se usa durante el build del frontend.
+`VITE_API_URL` debe contener la URL pública real de Spring terminada en `/api`; el dominio actual del servicio es `https://asistencia-qr-api-nsz3.onrender.com`. El backend obtiene el origen público del frontend desde el servicio estático mediante `RENDER_EXTERNAL_URL`. Si Render cambia el dominio del API, actualiza `VITE_API_URL` y vuelve a desplegar el sitio estático para que Vite incluya el nuevo valor en el build. Las referencias de servicios del Blueprint se actualizan al sincronizarlo.
 
 ## 4. Inicializar la base sintética
 

@@ -1,6 +1,9 @@
 // frontend/src/services/api.ts
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+const configuredApiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+export const API_URL = configuredApiUrl
+  ? (configuredApiUrl.endsWith('/api') ? configuredApiUrl : `${configuredApiUrl}/api`)
+  : '/api';
 
 // Todas las rutas protegidas necesitan el token que guarda AuthContext al hacer login.
 const authHeaders = (): HeadersInit => {
